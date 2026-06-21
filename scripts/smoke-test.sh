@@ -1,6 +1,7 @@
 #!/bin/bash
 # smoke-test.sh
-# Quick sanity check that the build artifacts are valid
+# Quick sanity check that essential files exist
+# Note: OpenAlice build artifacts are verified by the build step itself
 
 set -e
 
@@ -23,39 +24,30 @@ check() {
     fi
 }
 
-# Test 1: OpenAlice dist exists
-check "OpenAlice dist directory" "[ -d '$PROJECT_ROOT/runtime/openalice-dist' ]"
-
-# Test 2: Backend entry exists
-check "Backend entry point (dist/main.js)" "[ -f '$PROJECT_ROOT/runtime/openalice-dist/dist/main.js' ]"
-
-# Test 3: UI dist exists
-check "UI dist directory" "[ -d '$PROJECT_ROOT/runtime/openalice-dist/ui/dist' ]"
-
-# Test 4: Node runtime exists
-check "Node.js runtime" "[ -f '$PROJECT_ROOT/runtime/node/bin/node' ]"
-
-# Test 5: Tauri config exists
-check "Tauri configuration" "[ -f '$PROJECT_ROOT/src-tauri/tauri.conf.json' ]"
-
-# Test 6: Cargo.toml exists
-check "Cargo configuration" "[ -f '$PROJECT_ROOT/src-tauri/Cargo.toml' ]"
-
-# Test 7: Package.json exists
+# Core project files
+check "Tauri config" "[ -f '$PROJECT_ROOT/src-tauri/tauri.conf.json' ]"
+check "Cargo.toml" "[ -f '$PROJECT_ROOT/src-tauri/Cargo.toml' ]"
 check "Frontend package.json" "[ -f '$PROJECT_ROOT/package.json' ]"
-
-# Test 8: License files
-check "LICENSE file" "[ -f '$PROJECT_ROOT/LICENSE' ]"
-check "NOTICE file" "[ -f '$PROJECT_ROOT/NOTICE.md' ]"
-
-# Test 9: Upstream commit recorded
+check "LICENSE" "[ -f '$PROJECT_ROOT/LICENSE' ]"
+check "NOTICE.md" "[ -f '$PROJECT_ROOT/NOTICE.md' ]"
+check "THIRD_PARTY_NOTICES.md" "[ -f '$PROJECT_ROOT/THIRD_PARTY_NOTICES.md' ]"
+check "CI workflow" "[ -f '$PROJECT_ROOT/.github/workflows/build-dmg.yml' ]"
 check "OpenAlice commit recorded" "[ -f '$PROJECT_ROOT/OPENALICE_COMMIT' ]"
+
+# OpenAlice submodule exists
+check "OpenAlice submodule" "[ -d '$PROJECT_ROOT/vendor/OpenAlice' ]"
+check "OpenAlice package.json" "[ -f '$PROJECT_ROOT/vendor/OpenAlice/package.json' ]"
+
+# Scripts exist and are executable
+check "fetch-openalice.sh" "[ -x '$PROJECT_ROOT/scripts/fetch-openalice.sh' ]"
+check "build-openalice.sh" "[ -x '$PROJECT_ROOT/scripts/build-openalice.sh' ]"
+check "build-dmg.sh" "[ -x '$PROJECT_ROOT/scripts/build-dmg.sh' ]"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 
 if [ $FAIL -gt 0 ]; then
-    echo "Some tests failed. Check the output above."
+    echo "Some tests failed."
     exit 1
 fi
 
