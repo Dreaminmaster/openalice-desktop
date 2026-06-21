@@ -45,7 +45,7 @@
     }
   },
   "build": {
-    "frontendDist": "../dist",
+    "frontendDist": "../src/build",
     "devUrl": "http://localhost:1420"
   }
 }
