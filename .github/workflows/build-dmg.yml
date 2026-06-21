@@ -33,14 +33,11 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Tauri CLI via npm (fast)
-        run: npm install -g @tauri-apps/cli
-
       - name: Install dependencies
         run: pnpm install
 
       - name: Build Tauri app
-        run: tauri build --verbose
+        run: pnpm run build --verbose
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
