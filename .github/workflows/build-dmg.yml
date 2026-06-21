@@ -42,7 +42,7 @@ jobs:
 
       - name: Install Tauri dependencies
         run: |
-          brew install libgtkosx-application libappindicator
+          brew install gobject-introspection gtk4 libadwaita
 
       - name: Fetch and build OpenAlice
         run: |
