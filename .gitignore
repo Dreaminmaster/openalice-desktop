@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build outputs
+dist/
+target/
+*.dmg
+*.app
+build/
+
+# Runtime
+runtime/openalice-dist/
+runtime/node/
+OPENALICE_COMMIT
+
+# Vendor (git submodule tracked separately)
+vendor/OpenAlice/node_modules/
+vendor/OpenAlice/dist/
+vendor/OpenAlice/.turbo/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Config (user-specific)
+config.json
+.env
+.env.local
+
+# Tauri
+src-tauri/tauri.conf.json.local
+
+# Testing
+coverage/
+*.lcov
+
+# Diagnostic bundles
+diagnostic-*.tar.gz

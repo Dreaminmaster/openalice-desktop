@@ -1,0 +1,3 @@
+[submodule "vendor/OpenAlice"]
+	path = vendor/OpenAlice
+	url = https://github.com/TraderAlice/OpenAlice.git

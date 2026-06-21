@@ -1,0 +1,93 @@
+name: Build DMG
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Record OpenAlice commit
+        run: |
+          cd vendor/OpenAlice
+          git rev-parse HEAD > ../../OPENALICE_COMMIT
+          cat ../../OPENALICE_COMMIT
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri dependencies
+        run: |
+          brew install libgtkosx-application libappindicator
+
+      - name: Fetch and build OpenAlice
+        run: |
+          chmod +x scripts/*.sh
+          ./scripts/fetch-openalice.sh
+          ./scripts/build-openalice.sh
+
+      - name: Prepare runtime
+        run: |
+          ./scripts/prepare-runtime.sh
+
+      - name: Install project dependencies
+        run: |
+          pnpm install
+
+      - name: Run smoke tests
+        run: |
+          chmod +x scripts/*.sh
+          ./scripts/smoke-test.sh
+
+      - name: Build Tauri app
+        run: |
+          pnpm tauri build
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenAliceDesktop-dmg-${{ matrix.arch }}
+          path: src-tauri/target/release/bundle/dmg/*.dmg
+          retention-days: 7
+
+      - name: Generate checksums
+        run: |
+          cd src-tauri/target/release/bundle/dmg/
+          for dmg in *.dmg; do
+            shasum -a 256 "$dmg" > "${dmg}.sha256"
+            echo "$dmg: $(cat ${dmg}.sha256)"
+          done
+
+      - name: Create GitHub Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: src-tauri/target/release/bundle/dmg/*.dmg
+          draft: true
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
