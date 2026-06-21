@@ -11,15 +11,11 @@ permissions:
 jobs:
   build:
     runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: aarch64-apple-darwin
-            args: "--target aarch64-apple-darwin"
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Record OpenAlice commit
         run: cd vendor/OpenAlice && git rev-parse HEAD > ../OPENALICE_COMMIT
@@ -27,33 +23,31 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          args: ${{ matrix.args }}
+          tauriScript: npx tauri
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OpenAlice-Desktop-${{ matrix.target }}
+          name: OpenAlice-Desktop-DMG
           path: src-tauri/target/release/bundle/dmg/*.dmg
