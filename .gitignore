@@ -40,8 +40,11 @@ config.json
 .env
 .env.local
 
-# Tauri
-src-tauri/tauri.conf.json.local
+# Icons (generated, not committed)
+src-tauri/icons/icns/
+
+# Temp files
+src-tauri/icons/temp_*.png
 
 # Testing
 coverage/
