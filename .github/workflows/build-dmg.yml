@@ -33,18 +33,16 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2"
+      - name: Install Tauri CLI via npm (fast)
+        run: npm install -g @tauri-apps/cli
 
       - name: Install dependencies
         run: pnpm install
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
+        run: tauri build --verbose
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tauriScript: npx tauri
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
