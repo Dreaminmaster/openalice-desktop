@@ -1,48 +1,45 @@
-name: Build DMG
+name: Build
 
 on:
   push:
     branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
-  build:
+  build-tauri:
     runs-on: macos-latest
-
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Record OpenAlice commit
-        run: cd vendor/OpenAlice && git rev-parse HEAD > ../OPENALICE_COMMIT
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Cache cargo, tauri, and platform-specific build artifacts
+        uses: actions/cache@v4
         with:
-          node-version: 22
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build Tauri app
-        run: pnpm run build --verbose
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install webkit2gtk
+        run: |
+          brew install webkitgtk
+
+      - name: Build the app
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload DMG artifact
+      - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
-          name: OpenAlice-Desktop-DMG
+          name: OpenAlice-Desktop.dmg
           path: src-tauri/target/release/bundle/dmg/*.dmg
