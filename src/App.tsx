@@ -242,7 +242,7 @@ export default function App() {
           </button>
         ))}
         <div style={{ marginTop: "auto", padding: "12px 16px", fontSize: 11, color: "#555" }}>
-          v0.3.0-alpha.1
+          v0.4.0-alpha.1
         </div>
       </div>
       <div style={styles.main}>
@@ -390,14 +390,23 @@ function Runtime() {
         </pre>
       </div>
       <div style={styles.btnGroup}>
-        <button style={styles.btnSuccess} onClick={async () => { await invoke("start_openalice"); refresh(); }}>
+        <button style={styles.btnSuccess} onClick={async () => { await invoke("start_openalice", { targetPath: null, backendPort: null }); refresh(); }}>
           Start OpenAlice
         </button>
-        <button style={styles.btnDanger} onClick={async () => { await invoke("stop_openalice"); refresh(); }}>
-          Stop OpenAlice
+        <button style={styles.btnDanger} onClick={async () => { await invoke("stop_openalice", { force: false }); refresh(); }}>
+          Stop
+        </button>
+        <button style={styles.btnDanger} onClick={async () => { await invoke("stop_openalice", { force: true }); refresh(); }}>
+          Force Kill
         </button>
         <button style={styles.btnPrimary} onClick={async () => { await invoke("restart_openalice"); refresh(); }}>
           Restart
+        </button>
+        <button style={styles.btnPrimary} onClick={async () => { await invoke("open_web_ui", { uiPort: null }); }}>
+          Open Web UI
+        </button>
+        <button style={styles.btnPrimary} onClick={async () => { await invoke("reveal_runtime_folder"); }}>
+          Reveal Folder
         </button>
         <button style={styles.btnPrimary} onClick={refresh}>
           Refresh
@@ -422,7 +431,7 @@ function Logs() {
     }
   };
 
-  useEffect(() => { refresh(); }, [logType]);
+  useEffect(() => { refresh(); const t = setInterval(refresh, 3000); return () => clearInterval(t); }, [logType]);
 
   return (
     <div>

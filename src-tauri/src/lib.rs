@@ -24,6 +24,8 @@ pub fn run() {
             commands::stop_openalice,
             commands::restart_openalice,
             commands::get_process_status,
+            commands::open_web_ui,
+            commands::reveal_runtime_folder,
             commands::tail_openalice_logs,
             commands::save_config,
             commands::load_config,

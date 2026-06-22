@@ -235,7 +235,7 @@ pub fn check_ports() -> Vec<PortCheck> {
 // ─── Command: start_openalice ───
 
 #[tauri::command]
-pub fn start_openalice(state: State<'_, Mutex<AppState>>) -> serde_json::Value {
+pub fn start_openalice(state: State<'_, Mutex<AppState>>, target_path: Option<String>, backend_port: Option<u16>) -> serde_json::Value {
     write_log(&app_log_path(), "Attempting to start OpenAlice...");
     let mut guard = state.lock().unwrap();
 
@@ -244,20 +244,29 @@ pub fn start_openalice(state: State<'_, Mutex<AppState>>) -> serde_json::Value {
         return serde_json::json!({ "success": false, "message": "Process already running" });
     }
 
-    // Check OpenAlice dir
-    if !openalice_dir().exists() || !openalice_dir().join("package.json").exists() {
+    let oa_dir = target_path.map(PathBuf::from).unwrap_or_else(|| openalice_dir());
+
+    if !oa_dir.exists() || !oa_dir.join("package.json").exists() {
         write_log(&app_log_path(), "OpenAlice directory not found or incomplete");
         return serde_json::json!({
             "success": false,
             "message": "OpenAlice directory not found. Please clone or select OpenAlice path.",
-            "expected_path": openalice_dir().to_string_lossy()
+            "expected_path": oa_dir.to_string_lossy()
         });
     }
 
-    // Try start
+    let port = backend_port.unwrap_or(8000);
+    // Check port
+    if !std::net::TcpListener::bind(("127.0.0.1", port)).is_ok() {
+        return serde_json::json!({
+            "success": false,
+            "message": format!("Port {} is already in use. Please stop the conflicting process or change the port in Settings.", port)
+        });
+    }
+
     let child = Command::new("node")
         .arg("dist/main.js")
-        .current_dir(&openalice_dir())
+        .current_dir(&oa_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn();
@@ -266,8 +275,8 @@ pub fn start_openalice(state: State<'_, Mutex<AppState>>) -> serde_json::Value {
         Ok(c) => {
             let pid = c.id();
             guard.process_child = Some(c);
-            write_log(&app_log_path(), &format!("OpenAlice started with PID {}", pid));
-            serde_json::json!({ "success": true, "message": "OpenAlice started", "pid": pid })
+            write_log(&app_log_path(), &format!("OpenAlice started with PID {} on port {}", pid, port));
+            serde_json::json!({ "success": true, "message": "OpenAlice started", "pid": pid, "port": port })
         }
         Err(e) => {
             write_log(&app_log_path(), &format!("Failed to start OpenAlice: {}", e));
@@ -279,23 +288,19 @@ pub fn start_openalice(state: State<'_, Mutex<AppState>>) -> serde_json::Value {
 // ─── Command: stop_openalice ───
 
 #[tauri::command]
-pub fn stop_openalice(state: State<'_, Mutex<AppState>>) -> serde_json::Value {
+pub fn stop_openalice(state: State<'_, Mutex<AppState>>, force: Option<bool>) -> serde_json::Value {
     write_log(&app_log_path(), "Stopping OpenAlice...");
     let mut guard = state.lock().unwrap();
 
     if let Some(mut child) = guard.process_child.take() {
         let pid = child.id();
-        match child.kill() {
-            Ok(_) => {
-                let _ = child.wait();
-                write_log(&app_log_path(), &format!("OpenAlice (PID {}) stopped", pid));
-                serde_json::json!({ "success": true, "message": "Stopped", "pid": pid })
-            }
-            Err(e) => {
-                write_log(&app_log_path(), &format!("Failed to kill process: {}", e));
-                serde_json::json!({ "success": false, "message": format!("Failed to kill: {}", e) })
-            }
+        if force.unwrap_or(false) || child.kill().is_err() {
+            // Force kill via system command
+            let _ = Command::new("kill").arg("-9").arg(pid.to_string()).output();
         }
+        let _ = child.wait();
+        write_log(&app_log_path(), &format!("OpenAlice (PID {}) stopped", pid));
+        serde_json::json!({ "success": true, "message": "Stopped", "pid": pid })
     } else {
         serde_json::json!({ "success": false, "message": "No process running" })
     }
@@ -305,9 +310,34 @@ pub fn stop_openalice(state: State<'_, Mutex<AppState>>) -> serde_json::Value {
 
 #[tauri::command]
 pub fn restart_openalice(state: State<'_, Mutex<AppState>>) -> serde_json::Value {
-    let _ = stop_openalice(state.clone());
+    let _ = stop_openalice(state.clone(), Some(true));
     std::thread::sleep(std::time::Duration::from_secs(2));
-    start_openalice(state)
+    start_openalice(state, None, None)
+}
+
+// ─── Command: open_web_ui ───
+
+#[tauri::command]
+pub fn open_web_ui(ui_port: Option<u16>) -> serde_json::Value {
+    let port = ui_port.unwrap_or(3000);
+    let url = format!("http://127.0.0.1:{}", port);
+    let result = Command::new("open").arg(&url).output();
+    match result {
+        Ok(_) => serde_json::json!({ "success": true, "url": url }),
+        Err(e) => serde_json::json!({ "success": false, "message": format!("{}", e) }),
+    }
+}
+
+// ─── Command: reveal_runtime_folder ───
+
+#[tauri::command]
+pub fn reveal_runtime_folder() -> serde_json::Value {
+    let path = openalice_dir();
+    let result = Command::new("open").arg(&path).output();
+    match result {
+        Ok(_) => serde_json::json!({ "success": true, "path": path.to_string_lossy() }),
+        Err(e) => serde_json::json!({ "success": false, "message": format!("{}", e) }),
+    }
 }
 
 // ─── Command: get_process_status ───

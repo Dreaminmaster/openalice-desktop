@@ -1,6 +1,6 @@
 {
   "name": "openalice-desktop",
-  "version": "0.3.0-alpha.1",
+  "version": "0.4.0-alpha.1",
   "description": "macOS Desktop wrapper for OpenAlice \u2014 Tauri v2 application",
   "type": "module",
   "author": "Dreaminmaster",
