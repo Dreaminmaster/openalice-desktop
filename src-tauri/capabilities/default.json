@@ -3,12 +3,6 @@
   "description": "Default Tauri capability",
   "windows": ["main"],
   "permissions": [
-    "core:default",
-    "shell:allow-open",
-    "shell:allow-execute",
-    "core:window:allow-close",
-    "core:window:allow-minimize",
-    "core:window:allow-show",
-    "core:app:allow-set-app-theme"
+    "core:default"
   ]
 }
