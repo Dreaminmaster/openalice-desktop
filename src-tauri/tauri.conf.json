@@ -17,18 +17,6 @@
       "icons/256x256.png",
       "icons/512x512.png",
       "icons/1024x1024.png"
-    ],
-    "resources": []
-  },
-  "windows": [
-    {
-      "title": "OpenAlice Desktop",
-      "width": 1200,
-      "height": 800,
-      "resizable": true
-    }
-  ],
-  "security": {
-    "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost; style-src 'self' 'unsafe-inline'"
+    ]
   }
 }
