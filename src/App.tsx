@@ -242,7 +242,7 @@ export default function App() {
           </button>
         ))}
         <div style={{ marginTop: "auto", padding: "12px 16px", fontSize: 11, color: "#555" }}>
-          v0.4.0-alpha.1
+          v1.0.0
         </div>
       </div>
       <div style={styles.main}>

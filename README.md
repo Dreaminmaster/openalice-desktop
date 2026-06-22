@@ -1,125 +1,91 @@
 # OpenAlice Desktop
 
-macOS 桌面应用 — 将 OpenAlice 封装为可下载的 DMG 安装包。
+[![Build](https://github.com/Dreaminmaster/openalice-desktop/actions/workflows/build-dmg.yml/badge.svg)](https://github.com/Dreaminmaster/openalice-desktop/actions/workflows/build-dmg.yml)
 
-> **OpenAlice Desktop = OpenAlice 本体 + macOS 桌面启动器 + 首次配置向导 + 环境检查 + 日志面板 + 运行模式管理**
+macOS desktop launcher for [OpenAlice](https://github.com/TraderAlice/OpenAlice).
 
-## 产品定位
+> **OpenAlice Desktop wraps OpenAlice with a graphical setup wizard, environment checking, dependency management, process supervision, log viewing, and diagnostic export.**
 
-OpenAlice Desktop **不是**重新写一个交易系统，也不是重写 OpenAlice。它是一个 macOS 桌面化封装层：
+## Supported Platforms
 
-- ✅ 启动 OpenAlice 后端 & UI
-- ✅ 首次设置向导（欢迎 → 模式选择 → 环境检查 → AI 接入 → 交易模式 → 启动）
-- ✅ 管理本地数据目录 (`~/.openalice-desktop/`)
-- ✅ 检查 Node / Git / Claude Code / Codex / pnpm 等依赖
-- ✅ 管理 AI CLI 接入（Claude Code / Codex / Shell）
-- ✅ 管理日志面板 & 诊断包导出
-- ✅ 管理端口 & 进程生命周期
-- ✅ Native Mode（默认） & Docker Mode（预留）
+| Platform | Architecture | Status |
+|----------|-------------|--------|
+| macOS 13+ (Ventura) | Apple Silicon (arm64/M1/M2/M3/M4) | ✅ Supported |
+| macOS 13+ (Ventura) | Intel (x86_64) | ⚠️ Not yet built (builds available on request) |
+| Windows | — | ❌ Not planned |
+| Linux | — | ❌ Not planned |
 
-## 技术栈
+## Download
 
-| 层级 | 技术 |
-|------|------|
-| 桌面外壳 | Tauri v2 (Rust) |
-| 前端 | React 19 + TypeScript + Vite |
-| 运行时 | 内置 Node.js (arm64/x64) |
-| OpenAlice | Git Submodule (TraderAlice/OpenAlice) |
-| 构建 | GitHub Actions (macos-15 runner) |
-| 打包 | DMG (arm64 + x64 分别构建) |
+Latest release: [v1.0.0](https://github.com/Dreaminmaster/openalice-desktop/releases/latest)
 
-## 快速开始
+**DMG:** `OpenAlice.Desktop_<version>_aarch64.dmg` (~2 MB)
+
+| Attribute | Value |
+|-----------|-------|
+| Signed | ❌ Ad-hoc signed only |
+| Notarized | ❌ No |
+| First open | Right-click → Open (Gatekeeper bypass) |
+
+## Quick Start
+
+1. Download the DMG from [Releases](https://github.com/Dreaminmaster/openalice-desktop/releases)
+2. Right-click the DMG → Open (to bypass Gatekeeper)
+3. Drag `OpenAlice Desktop.app` to `/Applications`
+4. Right-click the app in Applications → Open
+5. Follow the Setup Wizard to clone and configure OpenAlice
+6. Start OpenAlice from the **Runtime** page
+
+## Features
+
+### ✅ Implemented
+- Tauri v2 desktop shell with dark theme UI
+- First-run Setup Wizard (5 steps)
+- Environment check: Git, Node.js, npm, pnpm, Python, Claude Code, Codex
+- Port availability check (8000, 3000, 3001, 5173, 47331)
+- Auto-clone OpenAlice from GitHub
+- Install dependencies (pnpm/npm)
+- Build OpenAlice
+- Start / Stop / Restart / Force Kill OpenAlice backend
+- Open Web UI in browser
+- Reveal runtime folder in Finder
+- Real-time log viewer (app, backend, UI logs)
+- Configuration save/load (mode, paths, ports)
+- Diagnostic bundle export (ZIP with system info, deps, ports, logs)
+
+### ❌ Not Yet Implemented
+- Docker Mode (UI shows "Coming Soon")
+- Auto-install missing system dependencies
+- Real trading account integration
+- Apple Developer ID signing
+- Notarization
+- Auto-updater
+
+## Known Issues
+- First launch requires right-click → Open (unsigned ad-hoc)
+- Some dependencies (Git, Node.js, pnpm) must be installed manually
+- Native Mode depends on local environment
+- Intel Mac builds not yet produced (can be built from source)
+
+## Building from Source
 
 ```bash
-# 克隆仓库（含 submodule）
 git clone --recurse-submodules https://github.com/Dreaminmaster/openalice-desktop.git
 cd openalice-desktop
-
-# 初始化 Tauri 项目
-pnpm install
-
-# 开发模式
-pnpm tauri dev
-
-# 构建
-pnpm tauri build
+npm install
+npx tauri build
 ```
 
-## 目录结构
+Requires: Rust, Node.js 20+, npm, Xcode Command Line Tools.
 
-```
-openalice-desktop/
-├── README.md
-├── LICENSE
-├── NOTICE
-├── THIRD_PARTY_NOTICES.md
-├── OPENALICE_UPSTREAM.md
-├── package.json
-├── pnpm-workspace.yaml
-├── src/                          # Tauri frontend (React + TS)
-│   ├── main.tsx
-│   ├── routes/                   # SetupWizard, Dashboard, Logs, Settings...
-│   ├── components/
-│   ├── stores/
-│   └── api/
-├── src-tauri/                    # Tauri backend (Rust)
-│   ├── Cargo.toml
-│   ├── tauri.conf.json
-│   ├── capabilities/
-│   ├── icons/
-│   └── src/
-│       ├── main.rs               # Tauri entry point
-│       ├── commands/             # Tauri commands
-│       ├── launcher/             # Process management
-│       ├── diagnostics/          # Env checker
-│       ├── logs/                 # Log manager
-│       └── ports/                # Port resolver
-├── vendor/
-│   └── OpenAlice/                # Git submodule (upstream)
-├── runtime/
-│   ├── node/                     # Bundled Node runtime
-│   ├── scripts/                  # Build & setup scripts
-│   └── openalice-dist/           # Pre-built OpenAlice
-├── scripts/
-│   ├── fetch-openalice.sh
-│   ├── build-openalice.sh
-│   ├── prepare-runtime.sh
-│   ├── build-dmg.sh
-│   ├── smoke-test.sh
-│   └── make-diagnostic-bundle.sh
-├── docs/
-│   ├── PRODUCT_SPEC.md           # 本文档来源
-│   ├── BUILD_GUIDE.md
-│   ├── TROUBLESHOOTING.md
-│   ├── SECURITY.md
-│   └── LICENSE_COMPLIANCE.md
-└── tests/
-    ├── launcher.test.ts
-    ├── diagnostics.test.ts
-    └── e2e/
+## Verification Scripts
+
+```bash
+sh scripts/smoke-test.sh              # Check project structure
+sh scripts/verify-runtime-commands.sh # Check all 16 Tauri commands registered
+sh scripts/verify-release-artifacts.sh # Check DMG and release
 ```
 
-## 产品路线图
+## License
 
-| 版本 | 内容 |
-|------|------|
-| v0.1.0 | Native Mode 基础框架 + Setup Wizard + Environment Checker |
-| v0.2.0 | Launcher Service + Logs Panel + Health Check |
-| v0.3.0 | AI Connector Manager + Agent Selection |
-| v0.4.0 | Docker Mode (experimental) |
-| v0.5.0 | Auto-updater + Menu Bar integration |
-| v1.0.0 | Stable release with DMG distribution |
-
-## 上游项目
-
-- **OpenAlice**: [TraderAlice/OpenAlice](https://github.com/TraderAlice/OpenAlice)
-- **License**: AGPL-3.0-only
-- **Stars**: ~5,450
-
-## 合规声明
-
-本项目遵循 AGPL-3.0 许可证。详见 [LICENSE](LICENSE)、[NOTICE](NOTICE)、[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
-
----
-
-Built with ❤️ for the open-source trading community.
+AGPL-3.0-only — same as upstream OpenAlice. See [LICENSE](LICENSE).
