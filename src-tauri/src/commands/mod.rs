@@ -1,8 +1,7 @@
-use std::collections::HashMap;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Command};
 use std::sync::Mutex;
 
 use chrono::Utc;
@@ -255,24 +254,8 @@ pub fn start_openalice(state: State<'_, Mutex<AppState>>) -> serde_json::Value {
     let child = Command::new("node")
         .arg("dist/main.js")
         .current_dir(&openalice_dir())
-        .stdout(
-            Stdio::from(
-                fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(backend_log_path())
-                    .unwrap_or_else(|_| Stdio::null().as_raw_fd().into()),
-            ),
-        )
-        .stderr(
-            Stdio::from(
-                fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(backend_log_path())
-                    .unwrap_or_else(|_| Stdio::null().as_raw_fd().into()),
-            ),
-        )
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn();
 
     match child {
