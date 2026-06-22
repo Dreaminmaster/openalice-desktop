@@ -1,10 +1,24 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
   "productName": "OpenAlice Desktop",
   "version": "0.1.0-alpha.1",
   "identifier": "com.dreaminmaster.openalice-desktop",
   "build": {
     "frontendDist": "../src/build",
     "devUrl": "http://localhost:1420"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "OpenAlice Desktop",
+        "width": 1200,
+        "height": 800,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
   },
   "bundle": {
     "active": true,
