@@ -28,6 +28,11 @@ pub fn run() {
             commands::save_config,
             commands::load_config,
             commands::export_diagnostics,
+            // v0.2: OpenAlice repo management
+            commands::get_openalice_info,
+            commands::clone_openalice,
+            commands::install_openalice_deps,
+            commands::build_openalice,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

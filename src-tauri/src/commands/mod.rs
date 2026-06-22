@@ -50,6 +50,10 @@ fn ui_log_path() -> PathBuf {
     log_dir().join("openalice-ui.log")
 }
 
+fn install_log_path() -> PathBuf {
+    log_dir().join("install.log")
+}
+
 fn write_log(file: &PathBuf, msg: &str) {
     let ts = Utc::now().to_rfc3339();
     if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(file) {
@@ -479,4 +483,262 @@ fn os_info() -> String {
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "unknown".into())
+}
+
+// ──────────────────────────────────────────────
+// v0.2.0: OpenAlice Repository Management
+// ──────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpenAliceInfo {
+    pub path: String,
+    pub exists: bool,
+    pub is_git_repo: bool,
+    pub branch: Option<String>,
+    pub commit: Option<String>,
+    pub commit_short: Option<String>,
+    pub has_package_json: bool,
+    pub has_readme: bool,
+    pub has_dist: bool,
+    pub has_node_modules: bool,
+    pub has_start_script: bool,
+    pub pnpm_lock_exists: bool,
+    pub message: String,
+}
+
+#[tauri::command]
+pub fn get_openalice_info(oa_path: Option<String>) -> OpenAliceInfo {
+    let path_str = oa_path.unwrap_or_else(|| openalice_dir().to_string_lossy().to_string());
+    let path = PathBuf::from(&path_str);
+
+    let exists = path.exists();
+    if !exists {
+        return OpenAliceInfo {
+            path: path_str,
+            exists: false,
+            is_git_repo: false,
+            branch: None,
+            commit: None,
+            commit_short: None,
+            has_package_json: false,
+            has_readme: false,
+            has_dist: false,
+            has_node_modules: false,
+            has_start_script: false,
+            pnpm_lock_exists: false,
+            message: "OpenAlice directory does not exist".into(),
+        };
+    }
+
+    let is_git = path.join(".git").exists();
+    let branch = if is_git {
+        Command::new("git")
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .current_dir(&path)
+            .output()
+            .ok()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+    } else {
+        None
+    };
+
+    let commit = if is_git {
+        Command::new("git")
+            .args(["rev-parse", "HEAD"])
+            .current_dir(&path)
+            .output()
+            .ok()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+    } else {
+        None
+    };
+
+    let commit_short = commit.as_ref().map(|c| c[..8.min(c.len())].to_string());
+
+    let has_pj = path.join("package.json").exists();
+    let has_rm = path.join("README.md").exists();
+    let has_d = path.join("dist").exists();
+    let has_nm = path.join("node_modules").exists();
+    let has_ss = if has_pj {
+        // Check if "start" or "dev" script exists in package.json
+        fs::read_to_string(path.join("package.json"))
+            .map(|s| s.contains("\"start\"") || s.contains("\"dev\""))
+            .unwrap_or(false)
+    } else {
+        false
+    };
+    let has_pl = path.join("pnpm-lock.yaml").exists();
+
+    OpenAliceInfo {
+        path: path_str,
+        exists: true,
+        is_git_repo: is_git,
+        branch,
+        commit,
+        commit_short,
+        has_package_json: has_pj,
+        has_readme: has_rm,
+        has_dist: has_d,
+        has_node_modules: has_nm,
+        has_start_script: has_ss,
+        pnpm_lock_exists: has_pl,
+        message: if has_pj && has_d && has_nm {
+            "OpenAlice appears ready to run".into()
+        } else if has_pj {
+            "OpenAlice source found, but may need build".into()
+        } else {
+            "Directory exists but does not appear to be OpenAlice".into()
+        },
+    }
+}
+
+#[tauri::command]
+pub fn clone_openalice(target_path: Option<String>) -> serde_json::Value {
+    let path_str = target_path.unwrap_or_else(|| openalice_dir().to_string_lossy().to_string());
+    let path = PathBuf::from(&path_str);
+
+    write_log(&app_log_path(), &format!("Cloning OpenAlice to {}", path_str));
+
+    // Create parent dirs
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+
+    // Remove existing if present
+    if path.exists() {
+        let _ = fs::remove_dir_all(&path);
+    }
+
+    let output = Command::new("git")
+        .args(["clone", "--depth", "1", "https://github.com/TraderAlice/OpenAlice.git", &path_str])
+        .output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            write_log(&app_log_path(), "OpenAlice cloned successfully");
+            write_log(&install_log_path(), &format!(
+                "Clone stdout: {}",
+                String::from_utf8_lossy(&out.stdout).trim()
+            ));
+            serde_json::json!({
+                "success": true,
+                "path": path_str,
+                "message": "OpenAlice cloned successfully"
+            })
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+            write_log(&app_log_path(), &format!("Clone failed: {}", stderr));
+            write_log(&install_log_path(), &format!("Clone stderr: {}", stderr));
+            serde_json::json!({
+                "success": false,
+                "message": format!("Clone failed: {}", stderr)
+            })
+        }
+        Err(e) => {
+            write_log(&app_log_path(), &format!("Clone error: {}", e));
+            serde_json::json!({
+                "success": false,
+                "message": format!("Clone error: {}", e)
+            })
+        }
+    }
+}
+
+#[tauri::command]
+pub fn install_openalice_deps(target_path: Option<String>) -> serde_json::Value {
+    let path_str = target_path.unwrap_or_else(|| openalice_dir().to_string_lossy().to_string());
+    let path = PathBuf::from(&path_str);
+
+    if !path.join("package.json").exists() {
+        return serde_json::json!({
+            "success": false,
+            "message": "package.json not found — is OpenAlice cloned here?"
+        });
+    }
+
+    write_log(&app_log_path(), &format!("Installing OpenAlice dependencies in {}", path_str));
+    write_log(&install_log_path(), "Starting pnpm install...");
+
+    // Try pnpm first, then npm
+    let output = Command::new("pnpm")
+        .args(["install"])
+        .current_dir(&path)
+        .output();
+
+    let result = match output {
+        Ok(out) if out.status.success() => {
+            write_log(&install_log_path(), "pnpm install succeeded");
+            serde_json::json!({ "success": true, "method": "pnpm", "message": "Dependencies installed with pnpm" })
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+            write_log(&install_log_path(), &format!("pnpm install failed, trying npm: {}", stderr));
+            // Fallback to npm
+            let npm_out = Command::new("npm")
+                .args(["install"])
+                .current_dir(&path)
+                .output();
+            match npm_out {
+                Ok(no) if no.status.success() => {
+                    write_log(&install_log_path(), "npm install succeeded");
+                    serde_json::json!({ "success": true, "method": "npm", "message": "Dependencies installed with npm (pnpm failed)" })
+                }
+                Ok(no) => {
+                    let e = String::from_utf8_lossy(&no.stderr).to_string();
+                    write_log(&install_log_path(), &format!("npm install also failed: {}", e));
+                    serde_json::json!({ "success": false, "message": format!("Both pnpm and npm install failed. Last error: {}", e) })
+                }
+                Err(e) => {
+                    serde_json::json!({ "success": false, "message": format!("npm install error: {}", e) })
+                }
+            }
+        }
+        Err(e) => {
+            serde_json::json!({ "success": false, "message": format!("pnpm not found: {}", e), "fix_hint": "Install pnpm: npm install -g pnpm" })
+        }
+    };
+
+    result
+}
+
+#[tauri::command]
+pub fn build_openalice(target_path: Option<String>) -> serde_json::Value {
+    let path_str = target_path.unwrap_or_else(|| openalice_dir().to_string_lossy().to_string());
+    let path = PathBuf::from(&path_str);
+
+    if !path.join("package.json").exists() {
+        return serde_json::json!({
+            "success": false,
+            "message": "package.json not found — is OpenAlice cloned here?"
+        });
+    }
+
+    if !path.join("node_modules").exists() {
+        return serde_json::json!({
+            "success": false,
+            "message": "node_modules not found — install dependencies first"
+        });
+    }
+
+    write_log(&app_log_path(), &format!("Building OpenAlice in {}", path_str));
+
+    let output = Command::new("pnpm")
+        .args(["build"])
+        .current_dir(&path)
+        .output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            write_log(&app_log_path(), "OpenAlice build succeeded");
+            serde_json::json!({ "success": true, "message": "Build successful" })
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+            serde_json::json!({ "success": false, "message": format!("Build failed: {}", stderr) })
+        }
+        Err(e) => {
+            serde_json::json!({ "success": false, "message": format!("Build error: {}", e) })
+        }
+    }
 }

@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 type Page =
   | "dashboard"
   | "envcheck"
+  | "openalice"
   | "runtime"
   | "logs"
   | "settings"
@@ -18,6 +19,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { id: "dashboard", label: "Dashboard" },
   { id: "envcheck", label: "Environment" },
+  { id: "openalice", label: "OpenAlice" },
   { id: "runtime", label: "Runtime" },
   { id: "logs", label: "Logs" },
   { id: "settings", label: "Settings" },
@@ -238,12 +240,13 @@ export default function App() {
           </button>
         ))}
         <div style={{ marginTop: "auto", padding: "12px 16px", fontSize: 11, color: "#555" }}>
-          v0.1.1-alpha.1
+          v0.2.0-alpha.1
         </div>
       </div>
       <div style={styles.main}>
         {page === "dashboard" && <Dashboard />}
         {page === "envcheck" && <EnvCheck />}
+        {page === "openalice" && <OpenAliceMgmt />}
         {page === "runtime" && <Runtime />}
         {page === "logs" && <Logs />}
         {page === "settings" && <Settings />}
@@ -580,4 +583,171 @@ function About() {
       </div>
     </div>
   );
+}
+
+// ─── OpenAlice Management (v0.2.0) ───
+
+function OpenAliceMgmt() {
+  const [info, setInfo] = useState<any>(null);
+  const [cloneMsg, setCloneMsg] = useState("");
+  const [installMsg, setInstallMsg] = useState("");
+  const [buildMsg, setBuildMsg] = useState("");
+  const [customPath, setCustomPath] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const refresh = async (path?: string) => {
+    try {
+      const r = await invoke("get_openalice_info", { oaPath: path || customPath || null });
+      setInfo(r);
+    } catch (e: any) {
+      setInfo({ exists: false, message: String(e) });
+    }
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  const doClone = async () => {
+    setLoading(true);
+    setCloneMsg("Cloning...");
+    try {
+      const r = await invoke("clone_openalice", { targetPath: customPath || null });
+      setCloneMsg(JSON.stringify(r));
+      await refresh(customPath || undefined);
+    } catch (e: any) {
+      setCloneMsg("Error: " + e);
+    }
+    setLoading(false);
+  };
+
+  const doInstall = async () => {
+    setLoading(true);
+    setInstallMsg("Installing...");
+    try {
+      const r = await invoke("install_openalice_deps", { targetPath: customPath || info?.path || null });
+      setInstallMsg(JSON.stringify(r));
+      await refresh(customPath || info?.path || undefined);
+    } catch (e: any) {
+      setInstallMsg("Error: " + e);
+    }
+    setLoading(false);
+  };
+
+  const doBuild = async () => {
+    setLoading(true);
+    setBuildMsg("Building...");
+    try {
+      const r = await invoke("build_openalice", { targetPath: customPath || info?.path || null });
+      setBuildMsg(JSON.stringify(r));
+      await refresh(customPath || info?.path || undefined);
+    } catch (e: any) {
+      setBuildMsg("Error: " + e);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div>
+      <h2 style={styles.header}>OpenAlice Repository</h2>
+
+      {/* Path selector */}
+      <div style={styles.card}>
+        <div style={styles.cardTitle}>Path</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            style={{ ...styles.input, flex: 1 }}
+            placeholder={info?.path || "Custom path (optional)"}
+            value={customPath}
+            onChange={(e) => setCustomPath(e.target.value)}
+          />
+          <button style={styles.btnPrimary} onClick={() => refresh(customPath || undefined)}>
+            Check
+          </button>
+        </div>
+      </div>
+
+      {/* Info display */}
+      {info && (
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>Repository Info</div>
+          <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
+            <tbody>
+              <tr>
+                <td style={{ color: "#888", padding: "4px 0" }}>Exists</td>
+                <td>{info.exists ? <span style={styles.badgeGreen}>✅</span> : <span style={styles.badgeRed}>❌</span>}</td>
+              </tr>
+              <tr>
+                <td style={{ color: "#888", padding: "4px 0" }}>Git Repo</td>
+                <td>{info.is_git_repo ? <span style={styles.badgeGreen}>✅</span> : <span style={styles.badgeRed}>❌</span>}</td>
+              </tr>
+              {info.branch && (
+                <tr>
+                  <td style={{ color: "#888", padding: "4px 0" }}>Branch</td>
+                  <td><code>{info.branch}</code></td>
+                </tr>
+              )}
+              {info.commit_short && (
+                <tr>
+                  <td style={{ color: "#888", padding: "4px 0" }}>Commit</td>
+                  <td><code>{info.commit_short}</code></td>
+                </tr>
+              )}
+              <tr>
+                <td style={{ color: "#888", padding: "4px 0" }}>package.json</td>
+                <td>{info.has_package_json ? <span style={styles.badgeGreen}>✅</span> : <span style={styles.badgeRed}>❌</span>}</td>
+              </tr>
+              <tr>
+                <td style={{ color: "#888", padding: "4px 0" }}>README.md</td>
+                <td>{info.has_readme ? <span style={styles.badgeGreen}>✅</span> : <span style={styles.badgeRed}>❌</span>}</td>
+              </tr>
+              <tr>
+                <td style={{ color: "#888", padding: "4px 0" }}>dist/</td>
+                <td>{info.has_dist ? <span style={styles.badgeGreen}>✅ Built</span> : <span style={styles.badgeYellow}>⚠️ Not built</span>}</td>
+              </tr>
+              <tr>
+                <td style={{ color: "#888", padding: "4px 0" }}>node_modules</td>
+                <td>{info.has_node_modules ? <span style={styles.badgeGreen}>✅</span> : <span style={styles.badgeRed}>❌</span>}</td>
+              </tr>
+              <tr>
+                <td style={{ color: "#888", padding: "4px 0" }}>Start Script</td>
+                <td>{info.has_start_script ? <span style={styles.badgeGreen}>✅</span> : <span style={styles.badgeYellow}>⚠️</span>}</td>
+              </tr>
+              <tr>
+                <td style={{ color: "#888", padding: "4px 0" }}>Status</td>
+                <td>{info.message}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div style={styles.btnGroup}>
+        <button style={styles.btnPrimary} onClick={doClone} disabled={loading}>
+          Clone OpenAlice
+        </button>
+        <button style={styles.btnPrimary} onClick={doInstall} disabled={loading || !info?.exists}>
+          Install Dependencies
+        </button>
+        <button style={styles.btnPrimary} onClick={doBuild} disabled={loading || !info?.has_node_modules}>
+          Build OpenAlice
+        </button>
+      </div>
+
+      {/* Messages */}
+      {cloneMsg && <div style={{ ...styles.card, marginTop: 12 }}><pre style={{ fontSize: 12, whiteSpace: "pre-wrap" }}>{cloneMsg}</pre></div>}
+      {installMsg && <div style={{ ...styles.card, marginTop: 12 }}><pre style={{ fontSize: 12, whiteSpace: "pre-wrap" }}>{installMsg}</pre></div>}
+      {buildMsg && <div style={{ ...styles.card, marginTop: 12 }}><pre style={{ fontSize: 12, whiteSpace: "pre-wrap" }}>{buildMsg}</pre></div>}
+
+      <div style={styles.card}>
+        <div style={styles.cardTitle}>How it works</div>
+        <ol style={{ fontSize: 12, color: "#888", paddingLeft: 16 }}>
+          <li>Click <strong>Clone OpenAlice</strong> to download TraderAlice/OpenAlice</li>
+          <li>Click <strong>Install Dependencies</strong> (requires pnpm)</li>
+          <li>Click <strong>Build OpenAlice</strong> to compile the project</li>
+          <li>Go to <strong>Runtime</strong> page to start the backend</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
 }
