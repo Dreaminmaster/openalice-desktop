@@ -18,34 +18,17 @@
       "icons/512x512.png",
       "icons/1024x1024.png"
     ],
-    "resources": [],
-    "copyright": "Copyright © 2026 OpenAlice Desktop Contributors",
-    "category": "Finance",
-    "shortDescription": "OpenAlice Desktop — AI Trading Workbench",
-    "longDescription": "A macOS desktop wrapper for OpenAlice, providing a graphical setup wizard, environment checking, log management, and process supervision for your one-person Wall Street.",
-    "darwin": {
-      "entitlements": null,
-      "exceptionDomain": "",
-      "frameworks": [],
-      "providerShortName": null,
-      "signingIdentity": null
-    }
+    "resources": []
   },
   "windows": [
     {
       "title": "OpenAlice Desktop",
       "width": 1200,
       "height": 800,
-      "resizable": true,
-      "fullscreen": false,
-      "decorations": true
+      "resizable": true
     }
   ],
   "security": {
     "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost; style-src 'self' 'unsafe-inline'"
-  },
-  "systemTray": {
-    "iconPath": "icons/128x128.png",
-    "iconAsTemplate": true
   }
 }
