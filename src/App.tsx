@@ -223,6 +223,8 @@ const styles: Record<string, React.CSSProperties> = {
 
 export default function App() {
   const [page, setPage] = useState<Page>("dashboard");
+  const [wizardStep, setWizardStep] = useState(0);
+  const [showWizard, setShowWizard] = useState(true);
 
   return (
     <div style={styles.container}>
@@ -240,18 +242,23 @@ export default function App() {
           </button>
         ))}
         <div style={{ marginTop: "auto", padding: "12px 16px", fontSize: 11, color: "#555" }}>
-          v0.2.0-alpha.1
+          v0.3.0-alpha.1
         </div>
       </div>
       <div style={styles.main}>
-        {page === "dashboard" && <Dashboard />}
-        {page === "envcheck" && <EnvCheck />}
-        {page === "openalice" && <OpenAliceMgmt />}
-        {page === "runtime" && <Runtime />}
-        {page === "logs" && <Logs />}
-        {page === "settings" && <Settings />}
-        {page === "diagnostics" && <Diagnostics />}
-        {page === "about" && <About />}
+        {showWizard && <SetupWizard step={wizardStep} setStep={setWizardStep} onFinish={() => setShowWizard(false)} />}
+        {!showWizard && (
+          <>
+            {page === "dashboard" && <Dashboard />}
+            {page === "envcheck" && <EnvCheck />}
+            {page === "openalice" && <OpenAliceMgmt />}
+            {page === "runtime" && <Runtime />}
+            {page === "logs" && <Logs />}
+            {page === "settings" && <Settings />}
+            {page === "diagnostics" && <Diagnostics />}
+            {page === "about" && <About />}
+          </>
+        )}
       </div>
     </div>
   );
@@ -750,4 +757,152 @@ function OpenAliceMgmt() {
     </div>
   );
 }
+
+
+// ──────────────────────────────────────────────
+// v0.3.0: First-run Setup Wizard
+// ──────────────────────────────────────────────
+
+function SetupWizard({ step, setStep, onFinish }: { step: number; setStep: (s: number) => void; onFinish: () => void }) {
+  const [deps, setDeps] = useState<any[]>([]);
+  const [ports, setPorts] = useState<any[]>([]);
+  const [info, setInfo] = useState<any>(null);
+  const [cloneDone, setCloneDone] = useState(false);
+  const [installDone, setInstallDone] = useState(false);
+
+  const STEPS = ["Welcome", "Environment", "OpenAlice Setup", "Install & Build", "Ready"];
+
+  useEffect(() => {
+    if (step === 1) {
+      invoke("check_system_dependencies").then(setDeps).catch(() => {});
+      invoke("check_ports").then(setPorts).catch(() => {});
+    }
+    if (step === 2) {
+      invoke("get_openalice_info", { oaPath: null }).then(setInfo).catch(() => {});
+    }
+  }, [step]);
+
+  const doClone = async () => {
+    try { const r: any = await invoke("clone_openalice", { targetPath: null }); if (r.success) setCloneDone(true); } catch {}
+  };
+  const doInstall = async () => {
+    try { const r: any = await invoke("install_openalice_deps", { targetPath: null }); if (r.success) setInstallDone(true); } catch {}
+  };
+
+  return (
+    <div>
+      <h2 style={styles.header}>{STEPS[step]}</h2>
+      <div style={{ display: "flex", gap: 4, marginBottom: 24 }}>
+        {STEPS.map((s, i) => (
+          <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= step ? "#8b5cf6" : "#2a2a3a" }} />
+        ))}
+      </div>
+
+      {step === 0 && (
+        <div style={styles.card}>
+          <p style={{ fontSize: 14, marginBottom: 16 }}>Welcome to <strong>OpenAlice Desktop</strong> — your one-person Wall Street.</p>
+          <p style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>
+            This wizard helps you set up OpenAlice. Check your environment, clone the repo, install dependencies, and you're ready.
+          </p>
+          <p style={{ fontSize: 12, color: "#666" }}>Default mode: Research only. Real trading requires explicit opt-in.</p>
+        </div>
+      )}
+
+      {step === 1 && (
+        <>
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>System Dependencies</div>
+            {deps.map((d: any) => (
+              <div key={d.name} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
+                <strong>{d.name}</strong>
+                {d.installed ? <span style={styles.badgeGreen}>✅ {d.version || ""}</span> : <span style={styles.badgeRed}>❌</span>}
+              </div>
+            ))}
+            {deps.length === 0 && <p style={{ color: "#888", fontSize: 12 }}>Loading...</p>}
+          </div>
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>Ports</div>
+            {ports.map((p: any) => (
+              <div key={p.port} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
+                <strong>Port {p.port}</strong>
+                {p.available ? <span style={styles.badgeGreen}>✅</span> : <span style={styles.badgeRed}>❌</span>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {step === 2 && (
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>OpenAlice Repository</div>
+          {info?.exists ? (
+            <div>
+              <p style={{ color: "#22c55e", fontSize: 13 }}>✅ OpenAlice found</p>
+              {info.commit_short && <p style={{ fontSize: 12, color: "#888" }}>Commit: {info.commit_short} | Branch: {info.branch}</p>}
+              <p style={{ fontSize: 12, color: "#888" }}>Deps: {info.has_node_modules ? "✅" : "❌"} | Built: {info.has_dist ? "✅" : "❌"}</p>
+            </div>
+          ) : (
+            <>
+              <p style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>
+                OpenAlice is not yet cloned. Click below to clone TraderAlice/OpenAlice.
+              </p>
+              <button style={styles.btnPrimary} onClick={doClone} disabled={cloneDone}>
+                {cloneDone ? "✅ Cloned" : "Clone OpenAlice"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {step === 3 && (
+        <>
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>Install Dependencies</div>
+            <p style={{ fontSize: 13, color: "#888", marginBottom: 8 }}>Run <code>pnpm install</code> in the OpenAlice directory.</p>
+            <button style={styles.btnPrimary} onClick={doInstall} disabled={installDone}>
+              {installDone ? "✅ Installed" : "Install Dependencies"}
+            </button>
+          </div>
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>Ports</div>
+            <p style={{ fontSize: 13, color: "#888", marginBottom: 8 }}>Default: Backend <strong>8000</strong>, UI <strong>3000</strong>. Change in Settings if needed.</p>
+            {ports.map((p: any) => (
+              <div key={p.port} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 }}>
+                <span>Port {p.port}</span>
+                {p.available ? <span style={styles.badgeGreen}>✅</span> : <span style={styles.badgeRed}>❌</span>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {step === 4 && (
+        <div style={styles.card}>
+          <p style={{ fontSize: 14, color: "#22c55e", marginBottom: 16 }}>✅ Setup complete!</p>
+          <ul style={{ fontSize: 13, color: "#888", paddingLeft: 16 }}>
+            <li>OpenAlice: ~/Library/Application Support/OpenAlice Desktop/openalice/</li>
+            <li>Logs: ~/Library/Application Support/OpenAlice Desktop/logs/</li>
+            <li>Use <strong>Runtime</strong> to start/stop OpenAlice</li>
+            <li>View <strong>Logs</strong> for troubleshooting</li>
+          </ul>
+          <div style={{ marginTop: 16 }}>
+            <button style={styles.btnSuccess} onClick={onFinish}>🚀 Start Using OpenAlice Desktop</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16 }}>
+        <button style={{ ...styles.btn, background: "#2a2a3a", color: "#e8e8f0" }}
+          onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0}>
+          ← Back
+        </button>
+        {step < 4 && (
+          <button style={styles.btnPrimary} onClick={() => setStep(step + 1)}>Next →</button>
+        )}
+        {step === 4 && (
+          <button style={styles.btnPrimary} onClick={onFinish}>Finish</button>
+        )}
+      </div>
+    </div>
+  );
 }
