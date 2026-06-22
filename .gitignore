@@ -10,6 +10,9 @@ target/
 *.app
 build/
 
+# Keep src/build (stub frontend for Tauri)
+!src/build/
+
 # Runtime
 runtime/openalice-dist/
 runtime/node/
