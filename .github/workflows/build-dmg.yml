@@ -5,41 +5,29 @@ on:
     branches: [main]
 
 jobs:
-  build-tauri:
+  build:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Cache cargo, tauri, and platform-specific build artifacts
-        uses: actions/cache@v4
+      - uses: actions/setup-node@v4
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          node-version: 22
+          cache: "npm"
 
-      - name: Install dependencies
-        run: pnpm install
+      - run: npm install
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Install webkit2gtk
-        run: |
-          brew install webkitgtk
+        run: brew install webkitgtk
 
-      - name: Build the app
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build with Tauri CLI
+        run: npx tauri build
 
-      - name: Upload DMG
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: OpenAlice-Desktop.dmg
           path: src-tauri/target/release/bundle/dmg/*.dmg
