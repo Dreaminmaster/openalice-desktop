@@ -1,7 +1,7 @@
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use std::process::{Command};
+use std::process::Command;
 use std::sync::Mutex;
 
 use chrono::Utc;
