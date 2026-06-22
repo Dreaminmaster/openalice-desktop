@@ -1,6 +1,6 @@
 {
   "name": "openalice-desktop",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.1-alpha.1",
   "description": "macOS Desktop wrapper for OpenAlice — Tauri v2 application",
   "type": "module",
   "author": "Dreaminmaster",
@@ -18,11 +18,11 @@
     "build": "tauri build",
     "tauri": "tauri",
     "lint": "eslint src/",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@tauri-apps/api": "^2"
+  },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
     "@types/react": "^19",
